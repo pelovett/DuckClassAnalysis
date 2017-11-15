@@ -6,11 +6,23 @@ from lxml import html
 import requests 
 
 def main():
-    PAGE_URL = "http://classes.uoregon.edu/pls/prod/hwskdhnt.P_ListCrse?term_in=201701&submit_btn=Show%20Classes&sel_subj=dummy&sel_day=dummy&sel_schd=dummy&sel_insm=dummy&sel_camp=dummy&sel_levl=dummydummy&sel_sess=dummy&sel_instr=dummy&sel_ptrm=dummy&sel_attr=dummy&sel_cred=dummy&sel_tuition=dummy&sel_open=dummy&sel_weekend=&sel_ptrm=&sel_schd=&sel_day=&sel_sess=&sel_instr=&sel_to_cred=&sel_from_cred=&sel_insm=&sel_subj=%25&sel_crse=&sel_crn=&sel_title=&begin_hh=0&begin_mi=0&begin_ap=a&end_hh=0&end_mi=0&end_ap=a&sel_levl=%25&sel_camp=%25&sel_attr=%25&sel_day=&sel_day=&cidx="
+
+    while(True):
+        year = input("Please enter the starting year of the academic year you're interested in:")
+        year = int(year)
+        if(year <= 2017 and year >= 1990):
+            break
+
+    data = collect_data(year)
+    return
+
+def collect_data(academic_year):
+    PAGE_URL_ONE = "http://classes.uoregon.edu/pls/prod/hwskdhnt.P_ListCrse?term_in="
+    PAGE_URL_TWO = "01&submit_btn=Show%20Classes&sel_subj=dummy&sel_day=dummy&sel_schd=dummy&sel_insm=dummy&sel_camp=dummy&sel_levl=dummydummy&sel_sess=dummy&sel_instr=dummy&sel_ptrm=dummy&sel_attr=dummy&sel_cred=dummy&sel_tuition=dummy&sel_open=dummy&sel_weekend=&sel_ptrm=&sel_schd=&sel_day=&sel_sess=&sel_instr=&sel_to_cred=&sel_from_cred=&sel_insm=&sel_subj=%25&sel_crse=&sel_crn=&sel_title=&begin_hh=0&begin_mi=0&begin_ap=a&end_hh=0&end_mi=0&end_ap=a&sel_levl=%25&sel_camp=%25&sel_attr=%25&sel_day=&sel_day=&cidx="
 
 
 
-    page = requests.get(PAGE_URL + "100")
+    page = requests.get(PAGE_URL_ONE + str(academic_year) + PAGE_URL_TWO + "100")
     tree = html.fromstring(page.content)
 
     
@@ -18,29 +30,26 @@ def main():
 
     table = tree.xpath(MY_QUERY)
 
-    print(table)
+    #print(table)
     
     QUERY_2 = "//tbody"
 
     tRows = table[0].xpath(QUERY_2)
 
     print(len(tRows))
-    print(table[0].getparent())
+    #print(table[0].getparent())
     
     #All rows but the first are part of the table
     table_data = table[0].getchildren()[1:]
 
-   # print(len(table_data))
-   # print(table_data[0])
-   # print(table_data[0].getchildren()[0])
-   # print(type(table_data[0].getchildren()[0].get("colspan")))
     insideClass = 0
+    gradeOpt = ""
     for row in table_data:
         title = row.getchildren()[0]
         #Check for header of course offering data
         if title.get("colspan") == "6":
             print(title.getchildren()[0].text)
-            print("CRN  Avail  Max  Time  Day  Location  Instructor")
+            #print("CRN  Avail  Max  Time  Day  Location  Instructor")
             insideClass = title.getchildren()[0].text
 
         #Either an empty row, or grading option row
@@ -50,8 +59,9 @@ def main():
             if title.getchildren()[0].get("class") == "datadisplaytable":
                 grade_opt = title.getchildren()[0].getchildren()[0]
                 grade_opt = grade_opt.getchildren()[1]
-                print(grade_opt.text)
-        
+                #print(grade_opt.text)
+                #TODO finish changing print statements to class instantiations
+                
         #A row with a section's information
         if title.get("rowspan") == "1":
             if title.get("width") == "60":
@@ -93,7 +103,6 @@ def main():
         if title.get("rowspan") == "2":
             print("test rowspan 2 detection")
         
-            
 
 
 if __name__ == "__main__":
