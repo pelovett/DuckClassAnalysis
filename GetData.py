@@ -4,6 +4,7 @@
 
 from lxml import html
 import requests 
+import numpy as np
 
 def main():
 
@@ -12,9 +13,11 @@ def main():
         year = int(year)
         if(year <= 2017 and year >= 1990):
             break
-
+           
     data = collect_data(year)
-    return
+    return data
+
+
 
 def collect_data(academic_year):
     PAGE_URL_ONE = "http://classes.uoregon.edu/pls/prod/hwskdhnt.P_ListCrse?term_in="
@@ -29,28 +32,26 @@ def collect_data(academic_year):
     MY_QUERY = "//table[@class='datadisplaytable' and @width=600]"
 
     table = tree.xpath(MY_QUERY)
-
-    #print(table)
     
     QUERY_2 = "//tbody"
 
     tRows = table[0].xpath(QUERY_2)
-
-    print(len(tRows))
-    #print(table[0].getparent())
     
     #All rows but the first are part of the table
     table_data = table[0].getchildren()[1:]
 
+    result_array = []
     insideClass = 0
     gradeOpt = ""
     for row in table_data:
         title = row.getchildren()[0]
         #Check for header of course offering data
         if title.get("colspan") == "6":
-            print(title.getchildren()[0].text)
             #print("CRN  Avail  Max  Time  Day  Location  Instructor")
-            insideClass = title.getchildren()[0].text
+            #Now all rows below this are offered sections of this course
+            title_text = title.getchildren()[0].text
+            title_text = title_text.strip("\xa0").split(" ")
+            insideClass = title_text
 
         #Either an empty row, or grading option row
         if title.get("colspan") == "15":
@@ -58,50 +59,71 @@ def collect_data(academic_year):
                 continue
             if title.getchildren()[0].get("class") == "datadisplaytable":
                 grade_opt = title.getchildren()[0].getchildren()[0]
-                grade_opt = grade_opt.getchildren()[1]
-                #print(grade_opt.text)
-                #TODO finish changing print statements to class instantiations
+                grade_opt = grade_opt.getchildren()[1].text[1:-1]
                 
+                if(grade_opt == "Optional for all students"):
+                    grade_opt = "Opt"
+                elif(grade_opt == "Pass/No Pass Only for all students"):
+                    grade_opt = "PNP"
+                elif(grade_opt == "Graded for Majors;\nOptional for all other students"):
+                    grade_opt = "Maj"
+                else:
+                    grade_opt = "Other: " + grade_opt
+                #Now all rows below this will inherit this grading policy
+
         #A row with a section's information
         if title.get("rowspan") == "1":
             if title.get("width") == "60":
-                data_results = ""
+                data_results = []
                 cols = row.getchildren()
                 #Lecture, discussion, or Null
                 if cols[0].getchildren():
                     #If lecture or discussion
-                    data_results += cols[0].getchildren()[0].text
+                    if(cols[0].getchildren()[0].text == "+ Dis"):
+                        data_results.append("Discussion")
+                    elif(cols[0].getchildren()[0].text == "+ Lab"):
+                        data_results.append("Lab")
+                    else:
+                        data_results.append(cols[0].getchildren()[0].text)
                 else:
                     #If Null
-                    data_results += cols[0].text+" "
+                    data_results.append('Lecture')
                 #CRN
                 try:
-                    data_results += cols[1].getchildren()[0].text+" "
+                    data_results.append(cols[1].getchildren()[0].text)
                 except IndexError:
                     print(cols[1])
                     print(cols[1].getchildren())
+                
                 if cols[2].getchildren():
-                    data_results += cols[2].getchildren()[0].getchildren()[0].text+" "
+                    continue
+                    data_results.append(cols[2].getchildren()[0].getchildren()[0].text+" ")
+                    #print(cols[2].getchildren()[0].getchildren()[0].text)
                 else:   
                     #Available seats
-                    data_results += cols[2].text+" "
+                    data_results.append(cols[2].text)
                     #Total seats
-                    data_results += cols[3].text+" "
+                    data_results.append(cols[3].text)
                 #Day
-                data_results += cols[4].text+" "
+                data_results.append(cols[4].text)
                 #Location 
-                data_results += cols[5].text+" "
+                data_results.append(cols[5].text)
                 #Instructor
-                data_results += cols[6].text+" "
+                data_results.append(cols[6].text)
                 #Last row is notes we can ignore it for now
-                print(data_results)
+
+                data_results.append(grade_opt)
+                data_results.append(insideClass[0])
+                data_results.append(insideClass[1])
+                
+                result_array.append(data_results)
             
             #Case where there are two listed instructors for one CRN
+            """
             elif(title.get("width") == "110"):
                 print(row.getchildren()[0].text)
-
-        if title.get("rowspan") == "2":
-            print("test rowspan 2 detection")
+            """
+    return np.array(result_array)
         
 
 
