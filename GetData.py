@@ -6,6 +6,8 @@ from lxml import html
 import requests 
 import numpy as np
 from pathlib import Path
+from threading import Thread
+from queue import Queue
 
 def main():
 
@@ -18,24 +20,45 @@ def main():
 
     while(True):
         year = input("Please enter the starting year of the academic year you're interested in (1990-2017):")
+        if(year == "all"):
+            data = collect_all_data()
+            fileString = Path("data/classDataAll.npy")
+            break 
+            
         year = int(year)
         if(year <= 2017 and year >= 1990):
+            data = collect_data(year)
+            fileString = Path("data/classData"+str(year)+".npy")
             break
            
-    data = collect_data(year)
-    fileString = Path("data/classData"+str(year)+".npy")
+    
     if not fileString.is_file():
         np.save(fileString, data)
     return data
 
 def load_data():
     while(True):
-        year = input("Please enter the year of your data file (1990-2017):")
+        year = input("Please enter the year of your data file (1990-2017 or all):")
+        if(year == "all"):
+            return np.load("data/classDataAll.npy")
+            
         year = int(year)
         if(year <= 2017 and year >= 1990):
-            break
+            return np.load("data/classData"+str(year)+".npy")
 
-    return np.load("data/classData"+str(year)+".npy")
+    
+
+def collect_all_data():
+    data = []
+    class download_worker(Thread):
+        def __init__(self, queue, resposit):
+            Thread.__init__(self)
+            self.queuee#######TODO
+    for year in range(1990, 2018):
+        print("Starting download of year: "+str(year))
+        data.append(collect_data(year))
+        
+    return np.array(data)
 
 def collect_data(academic_year):
     URL_ONE = "http://classes.uoregon.edu/pls/prod/hwskdhnt.P_ListCrse?term_in="
