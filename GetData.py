@@ -19,7 +19,7 @@ def main():
             return load_data()
 
     while(True):
-        year = input("Please enter the starting year of the academic year you're interested in (1990-2017):")
+        year = input("Please enter the starting year of the academic year you're interested in (1990-2017) or all:")
         if(year == "all"):
             data = collect_all_data()
             fileString = Path("data/classDataAll.npy")
@@ -50,22 +50,45 @@ def load_data():
 
 def collect_all_data():
     data = []
+    
     class download_worker(Thread):
-        def __init__(self, queue, resposit):
+        def __init__(self, queue, reposit):
             Thread.__init__(self)
-            self.queuee#######TODO
-    for year in range(1990, 2018):
-        print("Starting download of year: "+str(year))
-        data.append(collect_data(year))
+            self.queue = queue
+            self.reposit = reposit
+            
+        def run(self):
+            while not self.queue.empty():
+                year = self.queue.get()
+                class_info = collect_data(year)
+                self.reposit.append(class_info)
+                self.queue.task_done()
+    
+    years = [x for x in range(1990, 2017)]
+    year_queue = Queue()
+    for y in years:
+        year_queue.put(y)
         
-    return np.array(data)
+    for i in range(10):
+        worker = download_worker(year_queue, data)
+        worker.daemon = True
+        worker.start()
+
+    year_queue.join()
+    final = []
+    for year in data:
+        for row in year:
+            final.append(np.array(row))
+
+    return np.array(final)
 
 def collect_data(academic_year):
     URL_ONE = "http://classes.uoregon.edu/pls/prod/hwskdhnt.P_ListCrse?term_in="
     URL_TWO = "&submit_btn=Show%20Classes&sel_subj=dummy&sel_day=dummy&sel_schd=dummy&sel_insm=dummy&sel_camp=dummy&sel_levl=dummydummy&sel_sess=dummy&sel_instr=dummy&sel_ptrm=dummy&sel_attr=dummy&sel_cred=dummy&sel_tuition=dummy&sel_open=dummy&sel_weekend=&sel_ptrm=&sel_schd=&sel_day=&sel_sess=&sel_instr=&sel_to_cred=&sel_from_cred=&sel_insm=&sel_subj=%25&sel_crse=&sel_crn=&sel_title=&begin_hh=0&begin_mi=0&begin_ap=a&end_hh=0&end_mi=0&end_ap=a&sel_levl=%25&sel_camp=%25&sel_attr=%25&sel_day=&sel_day=&cidx="
     terms = ["01", "02", "03"] #Fall, Winter, Spring, respectively
     result_array = []
-
+    
+    print("Starting download of year: "+str(academic_year))
     for term in terms:
         #increment by hundreds until we reach end
         increment = 0
@@ -167,6 +190,7 @@ def collect_data(academic_year):
                         data_results.append(insideClass[0]) #School
                         data_results.append(insideClass[1]) #Class Number
                         data_results.append(term)       #Term offered
+                        data_results.append(academic_year)
                         result_array.append(data_results)
                 
             #Case where there are two listed instructors for one CRN
